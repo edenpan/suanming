@@ -264,11 +264,18 @@ class DatabaseManager {
       // 检查是否已经支持qimen类型
       try {
         // 尝试插入一个qimen类型的测试记录来检查约束
+        // 获取任意存在的用户ID，避免外键约束失败
+        const user = this.db.prepare('SELECT id FROM users LIMIT 1').get();
+        if (!user) {
+          console.log('⚠️ 无用户存在，跳过qimen迁移测试');
+          return;
+        }
+
         const testStmt = this.db.prepare(`
-          INSERT INTO numerology_readings (user_id, reading_type, name) 
+          INSERT INTO numerology_readings (user_id, reading_type, name)
           VALUES (?, ?, ?)
         `);
-        const testResult = testStmt.run(1, 'qimen', 'test_qimen_support');
+        const testResult = testStmt.run(user.id, 'qimen', 'test_qimen_support');
         
         // 如果插入成功，说明已经支持qimen，删除测试记录
         const deleteStmt = this.db.prepare('DELETE FROM numerology_readings WHERE id = ?');
