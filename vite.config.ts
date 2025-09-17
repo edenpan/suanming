@@ -18,5 +18,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    host: true,   // 允许外部访问（0.0.0.0）
+    port: 5173,   // 指定端口
+  },
 })
 

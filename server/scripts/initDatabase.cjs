@@ -12,6 +12,13 @@ async function initializeDatabase() {
     
     console.log('✅ 数据库结构创建成功');
     
+    // 清理潜在的外键孤儿数据
+    db.prepare(`
+      DELETE FROM ai_interpretations
+      WHERE reading_id NOT IN (SELECT id FROM numerology_readings)
+    `).run();
+    console.log('🧹 已清理孤立的 ai_interpretations 记录');
+    
     // 检查是否需要创建管理员用户
     const adminExists = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@localhost');
     
