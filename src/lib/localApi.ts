@@ -7,6 +7,9 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ||
    `${window.location.protocol}//${window.location.hostname}:3001/api`);
 
 // 调试信息
+console.log('当前主机名:', window.location.hostname);
+console.log('环境变量 VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
+console.log('最终 API_BASE_URL:', API_BASE_URL);
 
 
 interface ApiResponse<T> {
