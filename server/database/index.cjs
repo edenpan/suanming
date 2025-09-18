@@ -8,16 +8,18 @@ class DatabaseManager {
     
     // 检测Koyeb环境并使用正确的挂载路径
     const isKoyeb = process.env.KOYEB_APP_NAME || process.env.KOYEB_SERVICE_NAME || fs.existsSync('/workspace/data');
+    const isDocker = fs.existsSync('/.dockerenv') || process.env.DOCKER_CONTAINER === 'true';
     
     if (isKoyeb) {
       // Koyeb环境：Volume挂载到/workspace/data
       this.dbPath = '/workspace/data/numerology.db';
-    } else if (process.env.NODE_ENV === 'production') {
-      // 其他生产环境：使用/app/data
+    } else if (isDocker && process.env.NODE_ENV === 'production') {
+      // Docker生产环境：使用/app/data
       this.dbPath = '/app/data/numerology.db';
     } else {
-      // 开发环境：使用本地路径
-      this.dbPath = path.join(__dirname, '../../numerology.db');
+      // 本地环境（开发或生产）：使用项目根目录下的data文件夹
+      const dataDir = path.join(__dirname, '../../data');
+      this.dbPath = path.join(dataDir, 'numerology.db');
     }
     
     this.schemaPath = path.join(__dirname, 'schema.sql');
