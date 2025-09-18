@@ -77,20 +77,55 @@ app.use(helmet({
 
 // CORS配置
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
+  origin: process.env.NODE_ENV === 'production'
     ? (origin, callback) => {
-        // 生产环境的严格检查
-        const allowedOrigins = [
-          'http://localhost:5173',
-          'http://localhost:4173',
-          ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [])
-        ].filter(Boolean);
+        // 如果没有origin（比如Postman等工具），允许访问
+        if (!origin) {
+          return callback(null, true);
+        }
         
-        // 允许所有.koyeb.app域名
-        if (!origin || origin.endsWith('.koyeb.app') || allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
+        // 解析请求来源的主机名
+        try {
+          const requestUrl = new URL(origin);
+          const requestHost = requestUrl.hostname;
+          
+          // 允许本地访问
+          if (requestHost === 'localhost' || requestHost === '127.0.0.1') {
+            return callback(null, true);
+          }
+          
+          // 允许来自相同IP的不同端口访问（适用于前后端部署在同一服务器）
+          const serverHost = require('os').networkInterfaces();
+          const serverIPs = [];
+          
+          Object.values(serverHost).forEach(interfaces => {
+            interfaces.forEach(iface => {
+              if (iface.family === 'IPv4' && !iface.internal) {
+                serverIPs.push(iface.address);
+              }
+            });
+          });
+          
+          if (serverIPs.includes(requestHost)) {
+            return callback(null, true);
+          }
+          
+          // 检查环境变量中配置的允许来源
+          const allowedOrigins = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()) : [];
+          
+          // 允许所有.koyeb.app域名
+          if (origin.endsWith('.koyeb.app') || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+          }
+          
+          // 如果设置了 CORS_ORIGIN=* 则允许所有来源
+          if (allowedOrigins.includes('*')) {
+            return callback(null, true);
+          }
+          
           callback(new Error('Not allowed by CORS'));
+        } catch (error) {
+          callback(new Error('Invalid origin'));
         }
       }
     : true, // 开发环境允许所有域名
