@@ -1,10 +1,11 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth.cjs');
 const { getDB } = require('../database/index.cjs');
+const { aiRateLimit } = require('../middleware/aiRateLimit.cjs');
 const router = express.Router();
 
-// 保存AI解读结果
-router.post('/save', authenticate, async (req, res) => {
+// 保存AI解读结果 - 添加AI访问限制
+router.post('/save', authenticate, aiRateLimit, async (req, res) => {
   try {
     const { reading_id, content, model, tokens_used, success, error_message } = req.body;
     const user_id = req.user.id;
@@ -45,7 +46,8 @@ router.post('/save', authenticate, async (req, res) => {
       res.json({
         success: true,
         message: 'AI解读结果更新成功',
-        id: existingInterpretation.id
+        id: existingInterpretation.id,
+        aiUsage: req.aiUsage // 返回AI使用情况
       });
     } else {
       // 创建新记录
@@ -58,7 +60,8 @@ router.post('/save', authenticate, async (req, res) => {
       res.json({
         success: true,
         message: 'AI解读结果保存成功',
-        id: result.lastInsertRowid
+        id: result.lastInsertRowid,
+        aiUsage: req.aiUsage // 返回AI使用情况
       });
     }
   } catch (error) {
@@ -212,6 +215,52 @@ router.delete('/delete/:reading_id', authenticate, async (req, res) => {
     console.error('删除AI解读结果失败:', error);
     res.status(500).json({
       error: '删除AI解读结果失败',
+      details: error.message
+    });
+  }
+});
+
+// 获取当前IP的AI使用情况
+router.get('/usage', async (req, res) => {
+  try {
+    const { getAiUsageStats } = require('../middleware/aiRateLimit.cjs');
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() ||
+                     req.headers['x-real-ip'] ||
+                     req.connection.remoteAddress ||
+                     req.socket.remoteAddress ||
+                     req.ip;
+    
+    const usage = getAiUsageStats(clientIp);
+    
+    res.json({
+      success: true,
+      data: usage
+    });
+  } catch (error) {
+    console.error('获取AI使用情况失败:', error);
+    res.status(500).json({
+      error: '获取AI使用情况失败',
+      details: error.message
+    });
+  }
+});
+
+// 获取AI使用统计报告（需要认证）
+router.get('/usage/report', authenticate, async (req, res) => {
+  try {
+    const { getAiUsageReport } = require('../middleware/aiRateLimit.cjs');
+    const { days = 7 } = req.query;
+    
+    const report = getAiUsageReport(parseInt(days));
+    
+    res.json({
+      success: true,
+      data: report
+    });
+  } catch (error) {
+    console.error('获取AI使用报告失败:', error);
+    res.status(500).json({
+      error: '获取AI使用报告失败',
       details: error.message
     });
   }
